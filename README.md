@@ -1,6 +1,7 @@
 nclrun
 ======
 
+By _[Guidi Zhou](zhouguidi.github.io)_
 Run NCL scripts in a better way
 
 NCLRUN allows you to write and run NCL scripts in a better, easier way.
@@ -35,15 +36,16 @@ NCLRUN allows you to write and run NCL scripts in a better, easier way.
 Write the following script and name it "exp.ncl"
 ```
 #!/usr/bin/env nclrun
-load "time_axis_labels"                   # loading scripts in the standard $NCARG_ROOT path is very easy.
+# loading scripts in the standard $NCARG_ROOT path is very easy.
+load "time_axis_labels"
                                           
-                                          # two variables are made usable by command line arguments,
-                                          # a string named "fn", and an integer named "id"
-
+# two variables are made usable by command line arguments,
+# a string named "fn", and an integer named "id"
 f = addfile(fn + sprinti("%i", id), "r")
 
 res = True
-with res                                  # using a "with ... end with" block to easily set resources
+# using a "with ... end with" block to easily set resources
+with res
     gsnFrame = False
     gsnDraw = False
     gsnAddCyclic = False
