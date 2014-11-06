@@ -14,6 +14,7 @@ NCLRUN allows you to write and run NCL scripts in a better, easier way.
 4. A new `with` block to easily set many resources of a same object.
 5. Easily pass command line arguments to the script.
 6. Run the NCL script like a shell script.
+7. Eliminate the flourishing messages print out by NCL, leaving only errors and warnings.
 
 #Usage:
 1. Download the `nclrun` script and put it anywhere in your shell's `$PATH`.
@@ -45,6 +46,9 @@ NCLRUN allows you to write and run NCL scripts in a better, easier way.
    In the script, use `arg1` and `arg2` as normal variables.
 
    Two ways of passing arguments are supported: `arg=val` and `arg:=val`. Using the first syntax, the `val` will be surrounded by a pair of quotation marks, making `arg` a string. The second way doesn't do this, passing `val` verbosely to `arg`. The first form is good to pass string arguments, and the second should be used to pass integer or floating-point numbers.
+
+#Issues:
+Currently line numbers in error and warning messages are not correct.
 
 #Example:
 Write the following script and name it "exp.ncl"
