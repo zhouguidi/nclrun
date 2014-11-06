@@ -1,0 +1,107 @@
+#!/bin/bash
+function cleanup {
+    rm -f .ncl*.temporate.$$.*
+}
+
+if [ -z "$NCARG_ROOT" ]; then
+    echo "environment variable NCARG_ROOT not defined" >&2
+    exit 1
+fi
+
+fn=$1   #ncl script before parsing
+fntmp=.nclscript.temporate.$$.$(date +%s) #ncl script after parsing
+fnout=.ncloutput.temporate.$$.$(date +%s) #script output
+
+########### denoting changes #############
+sed -e 's/#.*$//g' $fn > $fntmp               #delete comments
+sed -e '/^\s*$/d' -i $fntmp                   #delete blank lines
+sed -r 's/^\s+//g' -i $fntmp
+sed -e 's:\[:(/:g' -e 's:\]:/):g' -i $fntmp  #change array constructor from [...] to(/.../) 
+
+########### auto-load library scripts ############
+fnload=.nclload.temporate.$$.$(date +%s)
+grep -n load $fntmp > $fnload  #line numbers and libarary scripts loaded in the script
+if [ $(wc -l $fnload | awk '{print $1}') -ne 0 ]; then   #indeed loaded some library scripts
+    NCL_LIB_PATH="$NCARG_ROOT:$NCL_LIB_PATH"             #define the searching path
+
+    while read -r line; do                               #search for each loaded script
+        ln=$(awk -F: '{print $1}' <<< $line)             #line number in the script 
+        src=$(awk -F\" '{print $2}' <<< $line)           #the loaded library script
+        
+        #if the library script starts with / or $, then it's absolute path, no need to process
+        src1=$(cut -c1 <<< $src)                         
+        if [ "$src1" = '/' -o "$src1" = '$' ]; then
+            continue
+        fi
+
+        fnln=.nclln.temporate.$$.$(date +%s)                           #file to store the path found
+        rm -f $fnln
+        #loop over paths in NCL_LIB_PATH
+        echo "$NCL_LIB_PATH" | sed -e 's/:/\n/g' | sort -u | uniq | while read -r p; do
+            p=$(find "$p" -name "$src.ncl")              #using find to search for the library script
+            if [ ! -z "$p" ]; then                       #found, then save the path and break
+                echo "$p" > $fnln
+                break
+            fi
+        done
+        if [ -r $fnln ]; then                            #found, then update the script
+            tag=$(cat $fnln)
+            sed -e "${ln}s:^.*$:load \"$tag\":g" -i $fntmp
+        else                                             #not found, error
+            echo "cannot find script $src" >&2
+            cleanup
+            exit 2
+        fi
+    done < $fnload
+fi
+
+########### with structure #############
+fnlnwith=.nclwith.temporate.$$.$(date +%s)
+grep -n 'with ' $fntmp | sed -e 's/:with//g' > $fnlnwith   #lines with with
+fnlnendw=.nclendw.temporate.$$.$(date +%s)
+grep -n 'end with' $fntmp | sed -e 's/:end.*$//g' > $fnlnendw   #lines with end with
+if [ $(wc -l $fnlnwith | awk '{print $1}') -ne $(wc -l $fnlnendw | awk '{print $1}') ]; then
+    echo "with and end with not matching" >&2
+    exit 3
+fi
+fnpaste=.nclpaste.temporate.$$.$(date +%s)
+paste $fnlnwith $fnlnendw > $fnpaste
+while read -r line; do       #loop through with-end with pairs
+    lnwith=$(awk '{print $1}' <<< $line)      #the line of with
+    withwhat=$(awk '{print $2}' <<< $line)    #the object name
+    lnend=$(awk '{print $3}' <<< $line)       #the line of end with
+    sed "${lnwith}s/.*//g" -i $fntmp          #the line of with -> empty
+    sed "${lnend}s/.*//g" -i $fntmp           #the line of end with -> empty
+    for ln in $(seq $(($lnwith+1)) $(($lnend-1))); do     #lines in between
+        con=$(sed -n "${ln}p" $fntmp)                     #content
+        res=$(cut -d= -f1 <<< $con)              #resource
+        val=$(cut -d= -f2- <<< $con)              #value
+        sed "${ln}s;.*;${withwhat}@${res}=$val;g" -i $fntmp   #-> object@resource=value
+    done
+done < $fnpaste
+sed -e '/^\s*$/d' -i $fntmp                   #delete blank lines
+
+########## arguments #############
+shift
+while [ "$1" != "" ]; do
+    par=$(awk -F= '{print $1}' <<< $1)        #arguments are in the form: arg=val, or arg:=val
+    val=$(awk -F= '{print $2}' <<< $1)
+    if [ $(rev <<< $par | cut -c1) = ':' ]; then  #if arg:=val, it means val is passed to the script verbosely
+        par=$(rev <<< $par | cut -c2- | rev)      #-- good for passing numeric values
+        added="$par=$val"
+    else                                          #otherwise a pair of double-quotes are added to the begining and
+        added="$par=\"$val\""                     #end of val -- making it a string
+    fi
+
+    echo "$added" | cat - $fntmp > $fntmp.1  
+    mv $fntmp.1 $fntmp
+    shift   
+done        
+
+########### run and redirect the output and errors ##########
+ncl $fntmp > $fnout
+sed -n '1,5!p' $fnout | grep -v -e "fatal:" -e "warning:" | sed -e "s/$fntmp/$(basename $fn)/g"
+sed -n '1,5!p' $fnout | grep -e "fatal:" -e "warning:" | sed -e "s/$fntmp/$(basename $fn)/g" >&2
+
+######### clean up ##########
+cleanup
