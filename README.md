@@ -3,7 +3,7 @@ nclrun
 
 By _[Guidi Zhou](http://zhouguidi.github.io)_
 
-Run [NCL](http://www.ncl.ucar.edu) scripts in a better way
+Run [NCAR Command Language (NCL)](http://www.ncl.ucar.edu) scripts in a better way
 
 NCLRUN allows you to write and run NCL scripts in a better, easier way.
 
