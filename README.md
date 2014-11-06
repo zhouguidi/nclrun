@@ -17,6 +17,11 @@ NCLRUN allows you to write and run NCL scripts in a better, easier way.
 
 #Usage:
 1. Download the `nclrun` script and put it anywhere in your shell's `$PATH`.
+   ```bash
+   $ git clone git@github.com:zhouguidi/nclrun
+   $ cd nclrun
+   $ sudo cp nclrun /usr/local/bin  # or anywhere in your $PATH
+   ```
 2. Put the following line to the begining of your NCL script:
     ```bash
     #!/usr/bin/env nclrun
